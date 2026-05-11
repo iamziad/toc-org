@@ -121,6 +121,24 @@ the TOC links (even if the style is different from org)."
 opening. The keys are hrefified headings, the values are original
 headings.")
 
+(defcustom toc-org-side-window-side 'left
+  "Side of the frame where the TOC side window is displayed.
+Possible values are `left', `right', `top', and `bottom'."
+  :type '(choice (const left)
+                 (const right)
+                 (const top)
+                 (const bottom))
+  :group 'toc-org)
+
+(defcustom toc-org-side-window-size 35
+  "Size of the TOC side window.
+This controls the width for `left'/`right' sides, and the height
+for `top'/`bottom' sides.  An integer means the number of columns
+or lines; a float between 0 and 1 means a fraction of the frame
+size (e.g. 0.3 for 30%)."
+  :type 'number
+  :group 'toc-org)
+
 (defun toc-org-raw-toc (markdown-syntax-p)
   "Return the \"raw\" table of contents of the current file,
 i.e. simply flush everything that's not a heading and strip
@@ -521,11 +539,12 @@ allowing navigation via `org-open-at-point' (\\[org-open-at-point])."
           (setq-local header-line-format
                       (format " TOC - %s" (buffer-name source-buf)))))
       (display-buffer
-       win-buf
-       '(display-buffer-in-side-window
-         (side         . left)
-         (window-width . 35)
-         (slot         . 0))))))
+        win-buf
+        (cons 'display-buffer-in-side-window
+              (list (cons 'side          toc-org-side-window-side)
+                    (cons 'window-width  toc-org-side-window-size)
+                    (cons 'window-height toc-org-side-window-size)
+                    '(slot . 0)))))))
 
 ;; Local Variables:
 ;; compile-command: "emacs -batch -l ert -l toc-org.el -l toc-org-test.el -f ert-run-tests-batch-and-exit && emacs -batch -f batch-byte-compile toc-org.el 2>&1 | sed -n '/Warning\|Error/p' | xargs -r ls"
