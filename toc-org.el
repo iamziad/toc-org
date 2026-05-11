@@ -488,6 +488,45 @@ fallback to `markdown-follow-thing-at-point' on failure"
     (when (equal org-link-translation-function 'toc-org-unhrefify)
       (setq org-link-translation-function nil))))
 
+;;;###autoload
+(defun toc-org-show-toc-window ()
+  "Show the table of contents of the current buffer in a side window.
+The TOC is displayed in a dedicated buffer with `org-mode' enabled,
+allowing navigation via `org-open-at-point' (\\[org-open-at-point])."
+  (interactive)
+  (let* ((source-buf  (current-buffer))
+         (source-file (buffer-file-name source-buf))
+         (markdown-p  (derived-mode-p 'markdown-mode))
+         (raw-toc     (toc-org-flush-subheadings
+                       (toc-org-raw-toc markdown-p)
+                       toc-org-max-depth))
+         (win-buf     (get-buffer-create "*org-toc*")))
+    (if (string-empty-p (string-trim raw-toc))
+        (message "toc-org: No :toc: heading found in this buffer.")
+      (with-current-buffer win-buf
+        (let ((inhibit-read-only t))
+          (erase-buffer)
+          (dolist (line (split-string raw-toc "\n" t))
+            (when (string-match "^\\(\\*+\\)[ \t]+\\(.*\\)" line)
+              (let* ((depth  (1- (length (match-string 1 line))))
+                     (title  (match-string 2 line))
+                     (indent (make-string (* 2 depth) ?\s)))
+                (insert indent "- "
+                        (format "[[file:%s::*%s][%s]]"
+                                source-file title title)
+                        "\n"))))
+          (org-mode)
+          (setq buffer-read-only t)
+          (goto-char (point-min))
+          (setq-local header-line-format
+                      (format " TOC - %s" (buffer-name source-buf)))))
+      (display-buffer
+       win-buf
+       '(display-buffer-in-side-window
+         (side         . left)
+         (window-width . 35)
+         (slot         . 0))))))
+
 ;; Local Variables:
 ;; compile-command: "emacs -batch -l ert -l toc-org.el -l toc-org-test.el -f ert-run-tests-batch-and-exit && emacs -batch -f batch-byte-compile toc-org.el 2>&1 | sed -n '/Warning\|Error/p' | xargs -r ls"
 ;; End:
