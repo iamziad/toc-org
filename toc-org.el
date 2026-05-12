@@ -532,6 +532,17 @@ fallback to `markdown-follow-thing-at-point' on failure"
 The TOC is displayed in a dedicated buffer with `org-mode' enabled,
 allowing navigation via `org-open-at-point' (\\[org-open-at-point])."
   (interactive)
+
+   (if (string= (buffer-name) "*org-toc*")
+     (kill-buffer-and-window)
+
+     (if (and toc-org--toc-buffer
+              (buffer-live-p toc-org--toc-buffer)
+              (get-buffer-window toc-org--toc-buffer))
+       (progn
+         (kill-buffer toc-org--toc-buffer)
+         (setq toc-org--toc-buffer nil))
+
   (let* ((source-buf  (current-buffer))
          (source-file (buffer-file-name source-buf))
          (markdown-p  (derived-mode-p 'markdown-mode))
@@ -567,6 +578,8 @@ allowing navigation via `org-open-at-point' (\\[org-open-at-point])."
                                     source-file line-num title)
                             "\n")))))
           (org-mode)
+          (display-line-numbers-mode -1)
+          (setq-local mode-line-format nil)
           (setq buffer-read-only t)
           (goto-char (point-min))
           (setq-local header-line-format
@@ -577,13 +590,14 @@ allowing navigation via `org-open-at-point' (\\[org-open-at-point])."
                                  (setq toc-org--toc-buffer win-buf)
                                  (add-hook 'kill-buffer-hook        #'toc-org--close-toc-window-on-kill nil t)
                                  (add-hook 'buffer-list-update-hook #'toc-org--close-toc-window))
-      (display-buffer
-        win-buf
-        (cons 'display-buffer-in-side-window
-              (list (cons 'side          toc-org-side-window-side)
-                    (cons 'window-width  toc-org-side-window-size)
-                    (cons 'window-height toc-org-side-window-size)
-                    '(slot . 0)))))))
+            (select-window
+              (display-buffer
+                win-buf
+                (cons 'display-buffer-in-side-window
+                      (list (cons 'side          toc-org-side-window-side)
+                            (cons 'window-width  toc-org-side-window-size)
+                            (cons 'window-height toc-org-side-window-size)
+                            '(slot . 0))))))))))
 
 ;; Local Variables:
 ;; compile-command: "emacs -batch -l ert -l toc-org.el -l toc-org-test.el -f ert-run-tests-batch-and-exit && emacs -batch -f batch-byte-compile toc-org.el 2>&1 | sed -n '/Warning\|Error/p' | xargs -r ls"
