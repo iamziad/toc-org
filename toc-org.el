@@ -524,15 +524,28 @@ allowing navigation via `org-open-at-point' (\\[org-open-at-point])."
       (with-current-buffer win-buf
         (let ((inhibit-read-only t))
           (erase-buffer)
-          (dolist (line (split-string raw-toc "\n" t))
-            (when (string-match "^\\(\\*+\\)[ \t]+\\(.*\\)" line)
-              (let* ((depth  (1- (length (match-string 1 line))))
-                     (title  (match-string 2 line))
-                     (indent (make-string (* 2 depth) ?\s)))
-                (insert indent "- "
-                        (format "[[file:%s::*%s][%s]]"
-                                source-file title title)
-                        "\n"))))
+            (dolist (line (split-string raw-toc "\n" t))
+              (when (string-match "^\\(\\*+\\)[ \t]+\\(.*\\)" line)
+                (let* ((depth  (1- (length (match-string 1 line))))
+                       (title  (replace-regexp-in-string
+                                 toc-org-statistics-cookies-regexp ""
+                                 (match-string 2 line)))
+                       (indent (make-string (* 2 depth) ?\s))
+		(line-num (with-current-buffer source-buf
+            (save-excursion
+              (goto-char (point-min))
+              (when (re-search-forward
+                     (concat (if markdown-p
+                                 "^#+[ \t]+"
+                               "^\\*+[ \t]+\\(?:[A-Z]+[ \t]+\\)?\\(?:\\[#.\\][ \t]+\\)?")
+                             (regexp-quote title))
+                     nil t)
+                (line-number-at-pos))))))
+                  (when line-num
+                    (insert indent "- "
+                            (format "[[file:%s::%d][%s]]"
+                                    source-file line-num title)
+                            "\n")))))
           (org-mode)
           (setq buffer-read-only t)
           (goto-char (point-min))
