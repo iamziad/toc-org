@@ -18,6 +18,7 @@ name conflict with one of the org contrib modules.
   - [[#via-packageel][via package.el]]
   - [[#manual][Manual]]
 - [[#use][Use]]
+  - [[#toc-side-window][TOC Side Window]]
   - [[#follow-links][Follow links]]
   - [[#exclude-headings][Exclude headings]]
   - [[#quote-table-of-contents][Quote table of contents]]
@@ -90,6 +91,27 @@ It's possible to set the default values of max depth and hrefify function with
 you do this outside of the org file itself, then you can face conflicts if you 
 work on the same file collaboratively with someone else, as your default configs 
 can vary.
+
+** TOC Side Window
+
+You can display the table of contents in a dedicated side window for easier
+navigation using: ~M-x toc-org-show-toc-window~
+
+This command works as a *toggle*: if the window is already open, calling the
+command again will close it.
+
+Inside the TOC window:
+- Use ~C-c C-o~ (~org-open-at-point~) to jump to the corresponding heading in
+  the source buffer.
+- Press ~q~ to quickly close the window.
+
+You can customize the appearance by setting these variables:
+- ~toc-org-side-window-side~: Where to display the window (~'left~,
+  ~'right~,~'top~, or ~'bottom~).
+- ~toc-org-side-window-size~: Controls the width or height of the window.
+- Use an *integer* for a fixed number of columns or lines.
+- Use a *float* (between 0.0 and 1.0) to set it as a *percentage* of the
+  frame size (e.g., ~0.3~ for 30%).
 
 ** Follow links
 
