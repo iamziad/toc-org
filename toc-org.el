@@ -139,6 +139,9 @@ size (e.g. 0.3 for 30%)."
   :type 'number
   :group 'toc-org)
 
+(defvar-local toc-org--toc-buffer nil
+  "TOC side window buffer associated with this buffer.")
+
 (defun toc-org-raw-toc (markdown-syntax-p)
   "Return the \"raw\" table of contents of the current file,
 i.e. simply flush everything that's not a heading and strip
@@ -506,6 +509,23 @@ fallback to `markdown-follow-thing-at-point' on failure"
     (when (equal org-link-translation-function 'toc-org-unhrefify)
       (setq org-link-translation-function nil))))
 
+(defun toc-org--close-toc-window ()
+  "Close TOC side windows whose source buffers are no longer visible."
+  (dolist (buf (buffer-list))
+    (with-current-buffer buf
+      (when (and toc-org--toc-buffer
+                 (buffer-live-p toc-org--toc-buffer)
+                 (not (get-buffer-window buf)))
+        (kill-buffer toc-org--toc-buffer)
+        (setq toc-org--toc-buffer nil)))))
+
+(defun toc-org--close-toc-window-on-kill ()
+  "Close the TOC side window when the source buffer is killed."
+  (when (and toc-org--toc-buffer
+             (buffer-live-p toc-org--toc-buffer))
+    (kill-buffer toc-org--toc-buffer)
+    (setq toc-org--toc-buffer nil)))
+
 ;;;###autoload
 (defun toc-org-show-toc-window ()
   "Show the table of contents of the current buffer in a side window.
@@ -551,6 +571,12 @@ allowing navigation via `org-open-at-point' (\\[org-open-at-point])."
           (goto-char (point-min))
           (setq-local header-line-format
                       (format " TOC - %s" (buffer-name source-buf)))))
+
+            (local-set-key (kbd "q") #'kill-buffer-and-window)
+            (with-current-buffer source-buf
+                                 (setq toc-org--toc-buffer win-buf)
+                                 (add-hook 'kill-buffer-hook        #'toc-org--close-toc-window-on-kill nil t)
+                                 (add-hook 'buffer-list-update-hook #'toc-org--close-toc-window))
       (display-buffer
         win-buf
         (cons 'display-buffer-in-side-window
