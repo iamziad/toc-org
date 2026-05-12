@@ -94,6 +94,8 @@ can vary.
 
 ** TOC Side Window
 
+[[https://github-production-user-asset-6210df.s3.amazonaws.com/215027645/591403334-d0431bc4-458b-477b-b680-f77a34014160.gif?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAVCODYLSA53PQK4ZA%2F20260512%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20260512T232232Z&X-Amz-Expires=300&X-Amz-Signature=5e986cd3a4efc113d4adf22447fee83831f5cacc0babdaef17d463bcd42b0b06&X-Amz-SignedHeaders=host&response-content-type=image%2Fgif]]
+
 You can display the table of contents in a dedicated side window for easier
 navigation using: ~M-x toc-org-show-toc-window~
 
