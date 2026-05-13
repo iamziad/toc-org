@@ -501,10 +501,17 @@ fallback to `markdown-follow-thing-at-point' on failure"
     (setq org-link-translation-function 'toc-org-unhrefify)
     (toc-org-insert-toc t)))
 
+(defvar toc-org-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "C-c t") #'toc-org-navigation-window)
+    map)
+  "Keymap for `toc-org-mode'.")
+
 ;;;###autoload
 (define-minor-mode toc-org-mode
   "Toggle `toc-org' in this buffer."
   :group toc-org
+  :keymap toc-org-mode-map
   (if toc-org-mode
       (toc-org-enable)
     (remove-hook 'before-save-hook 'toc-org-insert-toc t)
