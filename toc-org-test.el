@@ -292,14 +292,14 @@
      "# About\n:TOC:\n drawer\n:END:\n\ntoc-org is a utility to have an up-to-date table of contents in the\norg files without exporting (useful primarily for readme files on\nGitHub).\n\nIt is similar to the [[https://github.com/ardumont/markdown-toc][markdown-toc]] package, but works for org files.\n:TOC:\n  drawer\n:END:\n# Hello\n## Good-bye ##\n### Salut\n# Table of Contents                                                     <-- :TOC: -->\n- [About](#about)\n- [Hello](#hello)\n  - [Good-bye](#good-bye)\n")
     ))
 
-;; Tests for toc-org-navigation-window
+;; Tests for toc-org-navigation-pane
 
-(ert-deftest test-toc-org-navigation-window-first-heading-shown ()
-  "Navigation window shows all headings including the first one.
+(ert-deftest test-toc-org-navigation-pane-first-heading-shown ()
+  "Navigation pane shows all headings including the first one.
 Regression: toc-org-raw-toc always deleted the line at point after the
 search for the :toc: heading, even when no :toc: heading was present,
 silently dropping the first heading."
-  (when (get-buffer toc-org-navigation-window-buffer-name) (kill-buffer toc-org-navigation-window-buffer-name))
+  (when (get-buffer toc-org-navigation-pane-buffer-name) (kill-buffer toc-org-navigation-pane-buffer-name))
   (let* ((tmpfile (make-temp-file "toc-org-test" nil ".org"))
          (buf (find-file-noselect tmpfile)))
     (unwind-protect
@@ -308,17 +308,17 @@ silently dropping the first heading."
           (remove-hook 'buffer-list-update-hook #'toc-org--close-toc-window)
           (cl-letf (((symbol-function 'display-buffer) #'ignore)
                     ((symbol-function 'select-window)  #'ignore))
-            (toc-org-navigation-window))
-          (with-current-buffer (get-buffer toc-org-navigation-window-buffer-name)
+            (toc-org-navigation-pane))
+          (with-current-buffer (get-buffer toc-org-navigation-pane-buffer-name)
             (should (string-match-p "First" (buffer-string)))
             (should (string-match-p "Second" (buffer-string)))))
       (remove-hook 'buffer-list-update-hook #'toc-org--close-toc-window)
-      (when (get-buffer toc-org-navigation-window-buffer-name) (kill-buffer (get-buffer toc-org-navigation-window-buffer-name)))
+      (when (get-buffer toc-org-navigation-pane-buffer-name) (kill-buffer (get-buffer toc-org-navigation-pane-buffer-name)))
       (kill-buffer buf)
       (delete-file tmpfile))))
 
-(ert-deftest test-toc-org-navigation-window-point-preserved ()
-  "Navigation window restores window-point on refresh, not reset to beginning.
+(ert-deftest test-toc-org-navigation-pane-point-preserved ()
+  "Navigation pane restores window-point on refresh, not reset to beginning.
 Regression: toc-org--toc-buffer is defvar-local, so referencing it inside
 with-current-buffer (where the TOC buffer is current) yields nil instead of
 the TOC buffer.  get-buffer-window then received nil, skipping the
@@ -333,7 +333,7 @@ window-point path and always resetting point to the beginning."
           (remove-hook 'buffer-list-update-hook #'toc-org--close-toc-window)
           (cl-letf (((symbol-function 'display-buffer) #'ignore)
                     ((symbol-function 'select-window)  #'ignore))
-            (toc-org-navigation-window))
+            (toc-org-navigation-pane))
           ;; Mock get-buffer-window to return fake-win only for a real buffer
           ;; object — nil (the value toc-org--toc-buffer has inside
           ;; with-current-buffer) would return nil, skipping set-window-point.
@@ -343,37 +343,37 @@ window-point path and always resetting point to the beginning."
                      (lambda (_) 5))
                     ((symbol-function 'set-window-point)
                      (lambda (_ pos) (setq captured-set-point pos))))
-            (toc-org--refresh-navigation-window))
+            (toc-org--refresh-navigation-pane))
           (should (eql captured-set-point 5)))
       (remove-hook 'buffer-list-update-hook #'toc-org--close-toc-window)
-      (when (get-buffer toc-org-navigation-window-buffer-name)
-        (kill-buffer (get-buffer toc-org-navigation-window-buffer-name)))
+      (when (get-buffer toc-org-navigation-pane-buffer-name)
+        (kill-buffer (get-buffer toc-org-navigation-pane-buffer-name)))
       (kill-buffer buf)
       (delete-file tmpfile))))
 
-(ert-deftest test-toc-org-navigation-window-non-file-buffer ()
-  "Navigation window leaves no *org-toc* buffer when buffer is not visiting a file."
-  (when (get-buffer toc-org-navigation-window-buffer-name) (kill-buffer toc-org-navigation-window-buffer-name))
+(ert-deftest test-toc-org-navigation-pane-non-file-buffer ()
+  "Navigation pane leaves no *org-toc* buffer when buffer is not visiting a file."
+  (when (get-buffer toc-org-navigation-pane-buffer-name) (kill-buffer toc-org-navigation-pane-buffer-name))
   (with-temp-buffer
     (org-mode)
     (insert "* Heading 1\n* Heading 2\n")
-    (toc-org-navigation-window))
-  (should (null (get-buffer toc-org-navigation-window-buffer-name))))
+    (toc-org-navigation-pane))
+  (should (null (get-buffer toc-org-navigation-pane-buffer-name))))
 
-(ert-deftest test-toc-org-navigation-window-no-headings-no-leak ()
-  "Navigation window leaves no *org-toc* buffer when buffer has no headings."
-  (when (get-buffer toc-org-navigation-window-buffer-name) (kill-buffer toc-org-navigation-window-buffer-name))
+(ert-deftest test-toc-org-navigation-pane-no-headings-no-leak ()
+  "Navigation pane leaves no *org-toc* buffer when buffer has no headings."
+  (when (get-buffer toc-org-navigation-pane-buffer-name) (kill-buffer toc-org-navigation-pane-buffer-name))
   (let* ((tmpfile (make-temp-file "toc-org-test" nil ".org"))
          (buf (find-file-noselect tmpfile)))
     (unwind-protect
         (with-current-buffer buf
-          (toc-org-navigation-window)
-          (should (null (get-buffer toc-org-navigation-window-buffer-name))))
+          (toc-org-navigation-pane)
+          (should (null (get-buffer toc-org-navigation-pane-buffer-name))))
       (kill-buffer buf)
       (delete-file tmpfile))))
 
-(ert-deftest test-toc-org-navigation-window-hook-added ()
-  "buffer-list-update-hook is added when the navigation window is opened."
+(ert-deftest test-toc-org-navigation-pane-hook-added ()
+  "buffer-list-update-hook is added when the navigation pane is opened."
   (let* ((tmpfile (make-temp-file "toc-org-test" nil ".org"))
          (buf (find-file-noselect tmpfile)))
     (unwind-protect
@@ -382,14 +382,14 @@ window-point path and always resetting point to the beginning."
           (remove-hook 'buffer-list-update-hook #'toc-org--close-toc-window)
           (cl-letf (((symbol-function 'display-buffer) #'ignore)
                     ((symbol-function 'select-window)  #'ignore))
-            (toc-org-navigation-window))
+            (toc-org-navigation-pane))
           (should (memq #'toc-org--close-toc-window buffer-list-update-hook)))
       (remove-hook 'buffer-list-update-hook #'toc-org--close-toc-window)
-      (when (get-buffer toc-org-navigation-window-buffer-name) (kill-buffer (get-buffer toc-org-navigation-window-buffer-name)))
+      (when (get-buffer toc-org-navigation-pane-buffer-name) (kill-buffer (get-buffer toc-org-navigation-pane-buffer-name)))
       (kill-buffer buf)
       (delete-file tmpfile))))
 
-(ert-deftest test-toc-org-navigation-window-hook-removed ()
+(ert-deftest test-toc-org-navigation-pane-hook-removed ()
   "buffer-list-update-hook is removed once all TOC windows are closed."
   (let* ((tmpfile (make-temp-file "toc-org-test" nil ".org"))
          (buf (find-file-noselect tmpfile)))
@@ -399,16 +399,16 @@ window-point path and always resetting point to the beginning."
           (remove-hook 'buffer-list-update-hook #'toc-org--close-toc-window)
           (cl-letf (((symbol-function 'display-buffer) #'ignore)
                     ((symbol-function 'select-window)  #'ignore))
-            (toc-org-navigation-window))
+            (toc-org-navigation-pane))
           (when toc-org--toc-buffer (kill-buffer toc-org--toc-buffer))
           (toc-org--close-toc-window)
           (should (null (memq #'toc-org--close-toc-window buffer-list-update-hook))))
       (remove-hook 'buffer-list-update-hook #'toc-org--close-toc-window)
-      (when (get-buffer toc-org-navigation-window-buffer-name) (kill-buffer (get-buffer toc-org-navigation-window-buffer-name)))
+      (when (get-buffer toc-org-navigation-pane-buffer-name) (kill-buffer (get-buffer toc-org-navigation-pane-buffer-name)))
       (kill-buffer buf)
       (delete-file tmpfile))))
 
-(ert-deftest test-toc-org-navigation-window-no-error-on-buffer-switch ()
+(ert-deftest test-toc-org-navigation-pane-no-error-on-buffer-switch ()
   "Switching away from the source buffer closes *org-toc* without error.
 Regression: toc-org--close-toc-window iterated buffer-list and killed
 *org-toc* mid-loop, then tried to with-current-buffer the now-dead entry,
@@ -421,12 +421,12 @@ producing \"Selecting deleted buffer\"."
           (remove-hook 'buffer-list-update-hook #'toc-org--close-toc-window)
           (cl-letf (((symbol-function 'display-buffer) #'ignore)
                     ((symbol-function 'select-window)  #'ignore))
-            (toc-org-navigation-window))
+            (toc-org-navigation-pane))
           ;; TOC buffer is still alive; hook kills it mid-iteration — must not error
           (should (buffer-live-p toc-org--toc-buffer))
           (should-not (eq (toc-org--close-toc-window) 'error))
-          (should (null (get-buffer toc-org-navigation-window-buffer-name))))
+          (should (null (get-buffer toc-org-navigation-pane-buffer-name))))
       (remove-hook 'buffer-list-update-hook #'toc-org--close-toc-window)
-      (when (get-buffer toc-org-navigation-window-buffer-name) (kill-buffer (get-buffer toc-org-navigation-window-buffer-name)))
+      (when (get-buffer toc-org-navigation-pane-buffer-name) (kill-buffer (get-buffer toc-org-navigation-pane-buffer-name)))
       (kill-buffer buf)
       (delete-file tmpfile))))

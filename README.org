@@ -21,7 +21,7 @@ name conflict with one of the org contrib modules.
   - [[#follow-links][Follow links]]
   - [[#exclude-headings][Exclude headings]]
   - [[#quote-table-of-contents][Quote table of contents]]
-  - [[#navigation-window][Navigation window]]
+  - [[#navigation-pane][Navigation pane]]
   - [[#shortcut-for-toc-tag][Shortcut for TOC tag]]
 - [[#markdown-support][Markdown support]]
 - [[#different-href-styles][Different href styles]]
@@ -121,16 +121,16 @@ quote block (i.e. =#+BEGIN_QUOTE= / =#+END_QUOTE=). In that case, GitHub, for
 example, will add a vertical line to the left of the TOC that makes it distinct
 from the main text. To do this, just add a =:QUOTE:= tag to the TOC heading.
 
-** Navigation window
+** Navigation pane
 
 You can display the table of contents in a dedicated side window for easier
-navigation using: =M-x toc-org-navigation-window= (mapped to =C-c t=). This
+navigation using: =M-x toc-org-navigation-pane= (mapped to =C-c t=). This
 command works as a *toggle*: if the window is already open, calling the command
 again will close it.
 
 The buffer is read-only with single-letter shortcuts =n=, =p=, =f=, =b= for
 navigation; =k= to close; and =RET= to follow a link.  See =C-h f
-toc-org-navigation-window= for customization options.
+toc-org-navigation-pane= for customization options.
 
 ** Shortcut for TOC tag
 

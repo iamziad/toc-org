@@ -139,8 +139,8 @@ size (e.g. 0.3 for 30%)."
   :type 'number
   :group 'toc-org)
 
-(defconst toc-org-navigation-window-buffer-name "*toc-org-navigation-window*"
-  "Name of the buffer used for the TOC navigation window.")
+(defconst toc-org-navigation-pane-buffer-name "*toc-org-navigation-pane*"
+  "Name of the buffer used for the TOC navigation pane.")
 
 (defvar-local toc-org--toc-buffer nil
   "TOC side window buffer associated with this buffer.")
@@ -503,7 +503,7 @@ fallback to `markdown-follow-thing-at-point' on failure"
 
 (defvar toc-org-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "C-c t") #'toc-org-navigation-window)
+    (define-key map (kbd "C-c t") #'toc-org-navigation-pane)
     map)
   "Keymap for `toc-org-mode'.")
 
@@ -542,7 +542,7 @@ fallback to `markdown-follow-thing-at-point' on failure"
                 (setq any-toc-p t)
               (kill-buffer toc-org--toc-buffer)
               (setq toc-org--toc-buffer nil)
-              (remove-hook 'after-save-hook #'toc-org--refresh-navigation-window t))))))
+              (remove-hook 'after-save-hook #'toc-org--refresh-navigation-pane t))))))
     (unless any-toc-p
       (remove-hook 'buffer-list-update-hook #'toc-org--close-toc-window))))
 
@@ -552,10 +552,10 @@ fallback to `markdown-follow-thing-at-point' on failure"
              (buffer-live-p toc-org--toc-buffer))
     (kill-buffer toc-org--toc-buffer)
     (setq toc-org--toc-buffer nil))
-  (remove-hook 'after-save-hook #'toc-org--refresh-navigation-window t))
+  (remove-hook 'after-save-hook #'toc-org--refresh-navigation-pane t))
 
-(defun toc-org--refresh-navigation-window ()
-  "Refresh the TOC navigation window content for the current source buffer."
+(defun toc-org--refresh-navigation-pane ()
+  "Refresh the TOC navigation pane content for the current source buffer."
   (when (and toc-org--toc-buffer
              (buffer-live-p toc-org--toc-buffer))
     (let* ((source-buf   (current-buffer))
@@ -626,7 +626,7 @@ fallback to `markdown-follow-thing-at-point' on failure"
       (org-open-at-point))))
 
 ;;;###autoload
-(defun toc-org-navigation-window ()
+(defun toc-org-navigation-pane ()
   "Show the table of contents of the current buffer in a side window.
 
 Works as a toggle: calling it again closes the window.
@@ -644,14 +644,14 @@ for a fixed number of columns/lines, or a float (0.0–1.0) for a
 fraction of the frame size."
   (interactive)
   (cond
-   ((string= (buffer-name) toc-org-navigation-window-buffer-name)
+   ((string= (buffer-name) toc-org-navigation-pane-buffer-name)
     (kill-buffer-and-window))
    ((and toc-org--toc-buffer
          (buffer-live-p toc-org--toc-buffer)
          (get-buffer-window toc-org--toc-buffer))
     (kill-buffer toc-org--toc-buffer)
     (setq toc-org--toc-buffer nil)
-    (remove-hook 'after-save-hook #'toc-org--refresh-navigation-window t))
+    (remove-hook 'after-save-hook #'toc-org--refresh-navigation-pane t))
    (t
     (let* ((source-buf  (current-buffer))
            (source-file (buffer-file-name source-buf))
@@ -659,7 +659,7 @@ fraction of the frame size."
            (raw-toc     (toc-org-flush-subheadings
                          (toc-org-raw-toc markdown-p)
                          (toc-org--effective-max-depth)))
-           (win-buf     (get-buffer-create toc-org-navigation-window-buffer-name)))
+           (win-buf     (get-buffer-create toc-org-navigation-pane-buffer-name)))
       (cond
        ((not source-file)
         (kill-buffer win-buf)
@@ -687,9 +687,9 @@ fraction of the frame size."
         (with-current-buffer source-buf
           (setq toc-org--toc-buffer win-buf)
           (add-hook 'kill-buffer-hook        #'toc-org--close-toc-window-on-kill nil t)
-          (add-hook 'after-save-hook         #'toc-org--refresh-navigation-window nil t)
+          (add-hook 'after-save-hook         #'toc-org--refresh-navigation-pane nil t)
           (add-hook 'buffer-list-update-hook #'toc-org--close-toc-window)
-          (toc-org--refresh-navigation-window)
+          (toc-org--refresh-navigation-pane)
           (toc-org--goto-current-heading))
         (select-window
          (display-buffer
