@@ -596,8 +596,20 @@ fallback to `markdown-follow-thing-at-point' on failure"
 ;;;###autoload
 (defun toc-org-navigation-window ()
   "Show the table of contents of the current buffer in a side window.
-The TOC is displayed in a dedicated buffer with `org-mode' enabled,
-allowing navigation via `org-open-at-point' (\\[org-open-at-point])."
+
+Works as a toggle: calling it again closes the window.
+
+The TOC buffer is read-only with these single-letter shortcuts:
+  n / p   next / previous line
+  f / b   forward / backward character
+  k       close the window
+  RET     follow the link on the current line
+
+Customize `toc-org-side-window-side' to set which side the window
+appears on (left, right, top, or bottom).  Customize
+`toc-org-side-window-size' to set the width or height: an integer
+for a fixed number of columns/lines, or a float (0.0–1.0) for a
+fraction of the frame size."
   (interactive)
 
    (if (string= (buffer-name) toc-org-navigation-window-buffer-name)

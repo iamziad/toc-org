@@ -128,17 +128,9 @@ navigation using: =M-x toc-org-navigation-window= (mapped to =C-c t=). This
 command works as a *toggle*: if the window is already open, calling the command
 again will close it.
 
-The buffer is read-only and you can use single-letter shortcuts, like, =n=, =p=,
- =f=, =b= for navigation; =k= for killing it and =C-m=/=ENTER= for following the
- links.
-
-You can customize the appearance by setting these variables:
-- =toc-org-side-window-side=: Where to display the window (='left=,
-  ='right=, ='top=, or ='bottom=).
-- =toc-org-side-window-size~: Controls the width or height of the window.
-- Use an *integer* for a fixed number of columns or lines.
-- Use a *float* (between 0.0 and 1.0) to set it as a *percentage* of the
-  frame size (e.g., ~0.3~ for 30%).
+The buffer is read-only with single-letter shortcuts =n=, =p=, =f=, =b= for
+navigation; =k= to close; and =RET= to follow a link.  See =C-h f
+toc-org-navigation-window= for customization options.
 
 ** Shortcut for TOC tag
 
