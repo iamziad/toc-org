@@ -305,14 +305,14 @@ silently dropping the first heading."
     (unwind-protect
         (with-current-buffer buf
           (insert "* First\n* Second\n")
-          (remove-hook 'buffer-list-update-hook #'toc-org--close-toc-window)
+          (remove-hook 'buffer-list-update-hook #'toc-org--close-toc-pane)
           (cl-letf (((symbol-function 'display-buffer) #'ignore)
                     ((symbol-function 'select-window)  #'ignore))
             (toc-org-navigation-pane))
           (with-current-buffer (get-buffer toc-org-navigation-pane-buffer-name)
             (should (string-match-p "First" (buffer-string)))
             (should (string-match-p "Second" (buffer-string)))))
-      (remove-hook 'buffer-list-update-hook #'toc-org--close-toc-window)
+      (remove-hook 'buffer-list-update-hook #'toc-org--close-toc-pane)
       (when (get-buffer toc-org-navigation-pane-buffer-name) (kill-buffer (get-buffer toc-org-navigation-pane-buffer-name)))
       (kill-buffer buf)
       (delete-file tmpfile))))
@@ -330,7 +330,7 @@ window-point path and always resetting point to the beginning."
     (unwind-protect
         (with-current-buffer buf
           (insert "* Heading 1\n* Heading 2\n* Heading 3\n")
-          (remove-hook 'buffer-list-update-hook #'toc-org--close-toc-window)
+          (remove-hook 'buffer-list-update-hook #'toc-org--close-toc-pane)
           (cl-letf (((symbol-function 'display-buffer) #'ignore)
                     ((symbol-function 'select-window)  #'ignore))
             (toc-org-navigation-pane))
@@ -345,7 +345,7 @@ window-point path and always resetting point to the beginning."
                      (lambda (_ pos) (setq captured-set-point pos))))
             (toc-org--refresh-navigation-pane))
           (should (eql captured-set-point 5)))
-      (remove-hook 'buffer-list-update-hook #'toc-org--close-toc-window)
+      (remove-hook 'buffer-list-update-hook #'toc-org--close-toc-pane)
       (when (get-buffer toc-org-navigation-pane-buffer-name)
         (kill-buffer (get-buffer toc-org-navigation-pane-buffer-name)))
       (kill-buffer buf)
@@ -379,12 +379,12 @@ window-point path and always resetting point to the beginning."
     (unwind-protect
         (with-current-buffer buf
           (insert "* Heading 1\n* Heading 2\n")
-          (remove-hook 'buffer-list-update-hook #'toc-org--close-toc-window)
+          (remove-hook 'buffer-list-update-hook #'toc-org--close-toc-pane)
           (cl-letf (((symbol-function 'display-buffer) #'ignore)
                     ((symbol-function 'select-window)  #'ignore))
             (toc-org-navigation-pane))
-          (should (memq #'toc-org--close-toc-window buffer-list-update-hook)))
-      (remove-hook 'buffer-list-update-hook #'toc-org--close-toc-window)
+          (should (memq #'toc-org--close-toc-pane buffer-list-update-hook)))
+      (remove-hook 'buffer-list-update-hook #'toc-org--close-toc-pane)
       (when (get-buffer toc-org-navigation-pane-buffer-name) (kill-buffer (get-buffer toc-org-navigation-pane-buffer-name)))
       (kill-buffer buf)
       (delete-file tmpfile))))
@@ -396,21 +396,21 @@ window-point path and always resetting point to the beginning."
     (unwind-protect
         (with-current-buffer buf
           (insert "* Heading 1\n* Heading 2\n")
-          (remove-hook 'buffer-list-update-hook #'toc-org--close-toc-window)
+          (remove-hook 'buffer-list-update-hook #'toc-org--close-toc-pane)
           (cl-letf (((symbol-function 'display-buffer) #'ignore)
                     ((symbol-function 'select-window)  #'ignore))
             (toc-org-navigation-pane))
           (when toc-org--toc-buffer (kill-buffer toc-org--toc-buffer))
-          (toc-org--close-toc-window)
-          (should (null (memq #'toc-org--close-toc-window buffer-list-update-hook))))
-      (remove-hook 'buffer-list-update-hook #'toc-org--close-toc-window)
+          (toc-org--close-toc-pane)
+          (should (null (memq #'toc-org--close-toc-pane buffer-list-update-hook))))
+      (remove-hook 'buffer-list-update-hook #'toc-org--close-toc-pane)
       (when (get-buffer toc-org-navigation-pane-buffer-name) (kill-buffer (get-buffer toc-org-navigation-pane-buffer-name)))
       (kill-buffer buf)
       (delete-file tmpfile))))
 
 (ert-deftest test-toc-org-navigation-pane-no-error-on-buffer-switch ()
   "Switching away from the source buffer closes *org-toc* without error.
-Regression: toc-org--close-toc-window iterated buffer-list and killed
+Regression: toc-org--close-toc-pane iterated buffer-list and killed
 *org-toc* mid-loop, then tried to with-current-buffer the now-dead entry,
 producing \"Selecting deleted buffer\"."
   (let* ((tmpfile (make-temp-file "toc-org-test" nil ".org"))
@@ -418,15 +418,15 @@ producing \"Selecting deleted buffer\"."
     (unwind-protect
         (with-current-buffer buf
           (insert "* Heading 1\n* Heading 2\n")
-          (remove-hook 'buffer-list-update-hook #'toc-org--close-toc-window)
+          (remove-hook 'buffer-list-update-hook #'toc-org--close-toc-pane)
           (cl-letf (((symbol-function 'display-buffer) #'ignore)
                     ((symbol-function 'select-window)  #'ignore))
             (toc-org-navigation-pane))
           ;; TOC buffer is still alive; hook kills it mid-iteration — must not error
           (should (buffer-live-p toc-org--toc-buffer))
-          (should-not (eq (toc-org--close-toc-window) 'error))
+          (should-not (eq (toc-org--close-toc-pane) 'error))
           (should (null (get-buffer toc-org-navigation-pane-buffer-name))))
-      (remove-hook 'buffer-list-update-hook #'toc-org--close-toc-window)
+      (remove-hook 'buffer-list-update-hook #'toc-org--close-toc-pane)
       (when (get-buffer toc-org-navigation-pane-buffer-name) (kill-buffer (get-buffer toc-org-navigation-pane-buffer-name)))
       (kill-buffer buf)
       (delete-file tmpfile))))

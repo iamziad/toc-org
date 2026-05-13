@@ -143,7 +143,7 @@ size (e.g. 0.3 for 30%)."
   "Name of the buffer used for the TOC navigation pane.")
 
 (defvar-local toc-org--toc-buffer nil
-  "TOC side window buffer associated with this buffer.")
+  "TOC navigation pane buffer associated with this buffer.")
 
 (defun toc-org-raw-toc (markdown-syntax-p)
   "Return the \"raw\" table of contents of the current file,
@@ -520,7 +520,8 @@ fallback to `markdown-follow-thing-at-point' on failure"
       (setq org-link-translation-function nil))))
 
 (defun toc-org--effective-max-depth ()
-  "Return the max depth for the TOC: from the :TOC_N: tag if present, else `toc-org-max-depth'."
+  "Return the effective TOC max depth.
+Uses the depth from the :TOC_N: tag if present, else `toc-org-max-depth'."
   (save-excursion
     (goto-char (point-min))
     (let* ((case-fold-search t)
@@ -530,7 +531,7 @@ fallback to `markdown-follow-thing-at-point' on failure"
             (if tag (- (aref tag 1) ?0) toc-org-max-depth))
         toc-org-max-depth))))
 
-(defun toc-org--close-toc-window ()
+(defun toc-org--close-toc-pane ()
   "Close TOC side windows whose source buffers are no longer visible."
   (let ((any-toc-p nil))
     (dolist (buf (buffer-list))
@@ -544,9 +545,9 @@ fallback to `markdown-follow-thing-at-point' on failure"
               (setq toc-org--toc-buffer nil)
               (remove-hook 'after-save-hook #'toc-org--refresh-navigation-pane t))))))
     (unless any-toc-p
-      (remove-hook 'buffer-list-update-hook #'toc-org--close-toc-window))))
+      (remove-hook 'buffer-list-update-hook #'toc-org--close-toc-pane))))
 
-(defun toc-org--close-toc-window-on-kill ()
+(defun toc-org--close-toc-pane-on-kill ()
   "Close the TOC side window when the source buffer is killed."
   (when (and toc-org--toc-buffer
              (buffer-live-p toc-org--toc-buffer))
@@ -554,7 +555,7 @@ fallback to `markdown-follow-thing-at-point' on failure"
     (setq toc-org--toc-buffer nil))
   (remove-hook 'after-save-hook #'toc-org--refresh-navigation-pane t))
 
-(defun toc-org--refresh-navigation-pane ()
+(defun toc-org--refresh-navigation-pane (&optional max-depth)
   "Refresh the TOC navigation pane content for the current source buffer."
   (when (and toc-org--toc-buffer
              (buffer-live-p toc-org--toc-buffer))
@@ -563,7 +564,7 @@ fallback to `markdown-follow-thing-at-point' on failure"
            (markdown-p   (derived-mode-p 'markdown-mode))
            (raw-toc      (toc-org-flush-subheadings
                           (toc-org-raw-toc markdown-p)
-                          (toc-org--effective-max-depth)))
+                          (or max-depth (toc-org--effective-max-depth))))
            (toc-buf      toc-org--toc-buffer)
            (win          (get-buffer-window toc-buf))
            (saved-point  (when win (window-point win))))
@@ -596,14 +597,14 @@ fallback to `markdown-follow-thing-at-point' on failure"
               (set-window-point win (min saved-point (point-max)))
             (goto-char (point-min))))))))
 
-(defun toc-org--goto-current-heading ()
+(defun toc-org--goto-current-heading (&optional max-depth)
   "In the TOC buffer, position point at the entry for the heading at point."
   (when (and toc-org--toc-buffer
              (buffer-live-p toc-org--toc-buffer))
     (let* ((toc-buf    toc-org--toc-buffer)
            (markdown-p (derived-mode-p 'markdown-mode))
            (heading-re (if markdown-p "^\\(#+\\)[ \t]+" "^\\(\\*+\\)[ \t]+"))
-           (max-depth  (toc-org--effective-max-depth))
+           (max-depth  (or max-depth (toc-org--effective-max-depth)))
            (line-num
             (save-excursion
               (end-of-line)
@@ -627,17 +628,17 @@ fallback to `markdown-follow-thing-at-point' on failure"
 
 ;;;###autoload
 (defun toc-org-navigation-pane ()
-  "Show the table of contents of the current buffer in a side window.
+  "Show the table of contents of the current buffer as a side pane.
 
-Works as a toggle: calling it again closes the window.
+Works as a toggle: calling it again closes the pane.
 
 The TOC buffer is read-only with these single-letter shortcuts:
   n / p   next / previous line
   f / b   forward / backward character
-  k       close the window
+  k       close the pane
   RET     follow the link on the current line
 
-Customize `toc-org-side-window-side' to set which side the window
+Customize `toc-org-side-window-side' to set which side the pane
 appears on (left, right, top, or bottom).  Customize
 `toc-org-side-window-size' to set the width or height: an integer
 for a fixed number of columns/lines, or a float (0.0–1.0) for a
@@ -651,28 +652,22 @@ fraction of the frame size."
          (get-buffer-window toc-org--toc-buffer))
     (kill-buffer toc-org--toc-buffer)
     (setq toc-org--toc-buffer nil)
-    (remove-hook 'after-save-hook #'toc-org--refresh-navigation-pane t))
+    (remove-hook 'kill-buffer-hook #'toc-org--close-toc-pane-on-kill t)
+    (remove-hook 'after-save-hook  #'toc-org--refresh-navigation-pane t))
    (t
     (let* ((source-buf  (current-buffer))
            (source-file (buffer-file-name source-buf))
-           (markdown-p  (derived-mode-p 'markdown-mode))
-           (raw-toc     (toc-org-flush-subheadings
-                         (toc-org-raw-toc markdown-p)
-                         (toc-org--effective-max-depth)))
+           (max-depth   (toc-org--effective-max-depth))
            (win-buf     (get-buffer-create toc-org-navigation-pane-buffer-name)))
-      (cond
-       ((not source-file)
-        (kill-buffer win-buf)
-        (message "toc-org: Buffer is not visiting a file."))
-       ((string-empty-p (string-trim raw-toc))
-        (kill-buffer win-buf)
-        (message "toc-org: No headings found in this buffer."))
-       (t
+      (if (not source-file)
+          (progn
+            (kill-buffer win-buf)
+            (message "toc-org: Buffer is not visiting a file."))
         (with-current-buffer win-buf
           (org-mode)
           (display-line-numbers-mode -1)
           (setq-local mode-line-format nil)
-          (setq buffer-read-only t)
+          (setq-local buffer-read-only t)
           (setq-local header-line-format
                       (format " Table of Contents - %s" (buffer-name source-buf)))
           (let ((map (make-sparse-keymap)))
@@ -686,19 +681,26 @@ fraction of the frame size."
             (use-local-map map)))
         (with-current-buffer source-buf
           (setq toc-org--toc-buffer win-buf)
-          (add-hook 'kill-buffer-hook        #'toc-org--close-toc-window-on-kill nil t)
+          (add-hook 'kill-buffer-hook        #'toc-org--close-toc-pane-on-kill nil t)
           (add-hook 'after-save-hook         #'toc-org--refresh-navigation-pane nil t)
-          (add-hook 'buffer-list-update-hook #'toc-org--close-toc-window)
-          (toc-org--refresh-navigation-pane)
-          (toc-org--goto-current-heading))
-        (select-window
-         (display-buffer
-          win-buf
-          (cons 'display-buffer-in-side-window
-                (list (cons 'side          toc-org-side-window-side)
-                      (cons 'window-width  toc-org-side-window-size)
-                      (cons 'window-height toc-org-side-window-size)
-                      '(slot . 0)))))))))))
+          (add-hook 'buffer-list-update-hook #'toc-org--close-toc-pane)
+          (toc-org--refresh-navigation-pane max-depth))
+        (if (with-current-buffer win-buf (zerop (buffer-size)))
+            (progn
+              (kill-buffer win-buf)
+              (setq toc-org--toc-buffer nil)
+              (remove-hook 'kill-buffer-hook #'toc-org--close-toc-pane-on-kill t)
+              (remove-hook 'after-save-hook  #'toc-org--refresh-navigation-pane t)
+              (message "toc-org: No headings found in this buffer."))
+          (toc-org--goto-current-heading max-depth)
+          (select-window
+           (display-buffer
+            win-buf
+            (cons 'display-buffer-in-side-window
+                  (list (cons 'side          toc-org-side-window-side)
+                        (cons 'window-width  toc-org-side-window-size)
+                        (cons 'window-height toc-org-side-window-size)
+                        '(slot . 0)))))))))))
 
 ;; Local Variables:
 ;; compile-command: "emacs -batch -l ert -l toc-org.el -l toc-org-test.el -f ert-run-tests-batch-and-exit && emacs -batch -f batch-byte-compile toc-org.el 2>&1 | sed -n '/Warning\|Error/p' | xargs -r ls"
