@@ -139,6 +139,9 @@ size (e.g. 0.3 for 30%)."
   :type 'number
   :group 'toc-org)
 
+(defconst toc-org-navigation-window-buffer-name "*toc-org-navigation-window*"
+  "Name of the buffer used for the TOC navigation window.")
+
 (defvar-local toc-org--toc-buffer nil
   "TOC side window buffer associated with this buffer.")
 
@@ -193,9 +196,9 @@ auxiliary text."
 
       ;; don't include the TOC itself
       (goto-char (point-min))
-      (re-search-forward (concat "^\\*" toc-org-toc-org-regexp) nil t)
-      (beginning-of-line)
-      (delete-region (point) (progn (forward-line 1) (point)))
+      (when (re-search-forward (concat "^\\*" toc-org-toc-org-regexp) nil t)
+        (beginning-of-line)
+        (delete-region (point) (progn (forward-line 1) (point))))
 
       ;; strip states
       (unless leave-states-p
@@ -511,20 +514,69 @@ fallback to `markdown-follow-thing-at-point' on failure"
 
 (defun toc-org--close-toc-window ()
   "Close TOC side windows whose source buffers are no longer visible."
-  (dolist (buf (buffer-list))
-    (with-current-buffer buf
-      (when (and toc-org--toc-buffer
-                 (buffer-live-p toc-org--toc-buffer)
-                 (not (get-buffer-window buf)))
-        (kill-buffer toc-org--toc-buffer)
-        (setq toc-org--toc-buffer nil)))))
+  (let ((any-toc-p nil))
+    (dolist (buf (buffer-list))
+      (when (buffer-live-p buf)
+        (with-current-buffer buf
+          (when (and toc-org--toc-buffer
+                     (buffer-live-p toc-org--toc-buffer))
+            (if (get-buffer-window buf)
+                (setq any-toc-p t)
+              (kill-buffer toc-org--toc-buffer)
+              (setq toc-org--toc-buffer nil)
+              (remove-hook 'after-save-hook #'toc-org--refresh-navigation-window t))))))
+    (unless any-toc-p
+      (remove-hook 'buffer-list-update-hook #'toc-org--close-toc-window))))
 
 (defun toc-org--close-toc-window-on-kill ()
   "Close the TOC side window when the source buffer is killed."
   (when (and toc-org--toc-buffer
              (buffer-live-p toc-org--toc-buffer))
     (kill-buffer toc-org--toc-buffer)
-    (setq toc-org--toc-buffer nil)))
+    (setq toc-org--toc-buffer nil))
+  (remove-hook 'after-save-hook #'toc-org--refresh-navigation-window t))
+
+(defun toc-org--refresh-navigation-window ()
+  "Refresh the TOC navigation window content for the current source buffer."
+  (when (and toc-org--toc-buffer
+             (buffer-live-p toc-org--toc-buffer))
+    (let* ((source-buf   (current-buffer))
+           (source-file  (buffer-file-name source-buf))
+           (markdown-p   (derived-mode-p 'markdown-mode))
+           (raw-toc      (toc-org-flush-subheadings
+                          (toc-org-raw-toc markdown-p)
+                          toc-org-max-depth))
+           (toc-buf      toc-org--toc-buffer)
+           (win          (get-buffer-window toc-buf))
+           (saved-point  (when win (window-point win))))
+      (with-current-buffer toc-buf
+        (let ((inhibit-read-only t))
+          (erase-buffer)
+          (dolist (line (split-string raw-toc "\n" t))
+            (when (string-match "^\\(\\*+\\)[ \t]+\\(.*\\)" line)
+              (let* ((depth    (1- (length (match-string 1 line))))
+                     (title    (replace-regexp-in-string
+                                 toc-org-statistics-cookies-regexp ""
+                                 (match-string 2 line)))
+                     (indent   (make-string (* 2 depth) ?\s))
+                     (line-num (with-current-buffer source-buf
+                                 (save-excursion
+                                   (goto-char (point-min))
+                                   (when (re-search-forward
+                                          (concat (if markdown-p
+                                                      "^#+[ \t]+"
+                                                    "^\\*+[ \t]+\\(?:[A-Z]+[ \t]+\\)?\\(?:\\[#.\\][ \t]+\\)?")
+                                                  (regexp-quote title))
+                                          nil t)
+                                     (line-number-at-pos))))))
+                (when line-num
+                  (insert indent "- "
+                          (format "[[file:%s::%d][%s]]"
+                                  source-file line-num title)
+                          "\n")))))
+          (if (and win saved-point)
+              (set-window-point win (min saved-point (point-max)))
+            (goto-char (point-min))))))))
 
 ;;;###autoload
 (defun toc-org-navigation-window ()
@@ -533,7 +585,7 @@ The TOC is displayed in a dedicated buffer with `org-mode' enabled,
 allowing navigation via `org-open-at-point' (\\[org-open-at-point])."
   (interactive)
 
-   (if (string= (buffer-name) "*org-toc*")
+   (if (string= (buffer-name) toc-org-navigation-window-buffer-name)
      (kill-buffer-and-window)
 
      (if (and toc-org--toc-buffer
@@ -541,7 +593,8 @@ allowing navigation via `org-open-at-point' (\\[org-open-at-point])."
               (get-buffer-window toc-org--toc-buffer))
        (progn
          (kill-buffer toc-org--toc-buffer)
-         (setq toc-org--toc-buffer nil))
+         (setq toc-org--toc-buffer nil)
+         (remove-hook 'after-save-hook #'toc-org--refresh-navigation-window t))
 
   (let* ((source-buf  (current-buffer))
          (source-file (buffer-file-name source-buf))
@@ -549,46 +602,29 @@ allowing navigation via `org-open-at-point' (\\[org-open-at-point])."
          (raw-toc     (toc-org-flush-subheadings
                        (toc-org-raw-toc markdown-p)
                        toc-org-max-depth))
-         (win-buf     (get-buffer-create "*org-toc*")))
+         (win-buf     (get-buffer-create toc-org-navigation-window-buffer-name)))
+    (if (not source-file)
+        (progn
+          (kill-buffer win-buf)
+          (message "toc-org: Buffer is not visiting a file."))
     (if (string-empty-p (string-trim raw-toc))
-        (message "toc-org: No :toc: heading found in this buffer.")
+        (progn
+          (kill-buffer win-buf)
+          (message "toc-org: No headings found in this buffer."))
       (with-current-buffer win-buf
-        (let ((inhibit-read-only t))
-          (erase-buffer)
-            (dolist (line (split-string raw-toc "\n" t))
-              (when (string-match "^\\(\\*+\\)[ \t]+\\(.*\\)" line)
-                (let* ((depth  (1- (length (match-string 1 line))))
-                       (title  (replace-regexp-in-string
-                                 toc-org-statistics-cookies-regexp ""
-                                 (match-string 2 line)))
-                       (indent (make-string (* 2 depth) ?\s))
-		(line-num (with-current-buffer source-buf
-            (save-excursion
-              (goto-char (point-min))
-              (when (re-search-forward
-                     (concat (if markdown-p
-                                 "^#+[ \t]+"
-                               "^\\*+[ \t]+\\(?:[A-Z]+[ \t]+\\)?\\(?:\\[#.\\][ \t]+\\)?")
-                             (regexp-quote title))
-                     nil t)
-                (line-number-at-pos))))))
-                  (when line-num
-                    (insert indent "- "
-                            (format "[[file:%s::%d][%s]]"
-                                    source-file line-num title)
-                            "\n")))))
-          (org-mode)
-          (display-line-numbers-mode -1)
-          (setq-local mode-line-format nil)
-          (setq buffer-read-only t)
-          (goto-char (point-min))
-          (setq-local header-line-format
-                      (format " TOC - %s" (buffer-name source-buf)))))
+        (org-mode)
+        (display-line-numbers-mode -1)
+        (setq-local mode-line-format nil)
+        (setq buffer-read-only t)
+        (setq-local header-line-format
+                    (format " Table of Contents - %s" (buffer-name source-buf))))
 
             (with-current-buffer source-buf
-                                 (setq toc-org--toc-buffer win-buf)
-                                 (add-hook 'kill-buffer-hook        #'toc-org--close-toc-window-on-kill nil t)
-                                 (add-hook 'buffer-list-update-hook #'toc-org--close-toc-window))
+              (setq toc-org--toc-buffer win-buf)
+              (add-hook 'kill-buffer-hook        #'toc-org--close-toc-window-on-kill nil t)
+              (add-hook 'after-save-hook         #'toc-org--refresh-navigation-window nil t)
+              (add-hook 'buffer-list-update-hook #'toc-org--close-toc-window)
+              (toc-org--refresh-navigation-window))
             (select-window
               (display-buffer
                 win-buf
@@ -596,7 +632,7 @@ allowing navigation via `org-open-at-point' (\\[org-open-at-point])."
                       (list (cons 'side          toc-org-side-window-side)
                             (cons 'window-width  toc-org-side-window-size)
                             (cons 'window-height toc-org-side-window-size)
-                            '(slot . 0))))))))))
+                            '(slot . 0)))))))))))
 
 ;; Local Variables:
 ;; compile-command: "emacs -batch -l ert -l toc-org.el -l toc-org-test.el -f ert-run-tests-batch-and-exit && emacs -batch -f batch-byte-compile toc-org.el 2>&1 | sed -n '/Warning\|Error/p' | xargs -r ls"
