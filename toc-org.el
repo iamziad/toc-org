@@ -519,6 +519,17 @@ fallback to `markdown-follow-thing-at-point' on failure"
     (when (equal org-link-translation-function 'toc-org-unhrefify)
       (setq org-link-translation-function nil))))
 
+(defun toc-org--effective-max-depth ()
+  "Return the max depth for the TOC: from the :TOC_N: tag if present, else `toc-org-max-depth'."
+  (save-excursion
+    (goto-char (point-min))
+    (let* ((case-fold-search t)
+           (heading-re (if (derived-mode-p 'markdown-mode) "^#" "^\\*")))
+      (if (re-search-forward (concat heading-re toc-org-toc-org-regexp) nil t)
+          (let ((tag (match-string 2)))
+            (if tag (- (aref tag 1) ?0) toc-org-max-depth))
+        toc-org-max-depth))))
+
 (defun toc-org--close-toc-window ()
   "Close TOC side windows whose source buffers are no longer visible."
   (let ((any-toc-p nil))
@@ -552,7 +563,7 @@ fallback to `markdown-follow-thing-at-point' on failure"
            (markdown-p   (derived-mode-p 'markdown-mode))
            (raw-toc      (toc-org-flush-subheadings
                           (toc-org-raw-toc markdown-p)
-                          toc-org-max-depth))
+                          (toc-org--effective-max-depth)))
            (toc-buf      toc-org--toc-buffer)
            (win          (get-buffer-window toc-buf))
            (saved-point  (when win (window-point win))))
@@ -584,6 +595,27 @@ fallback to `markdown-follow-thing-at-point' on failure"
           (if (and win saved-point)
               (set-window-point win (min saved-point (point-max)))
             (goto-char (point-min))))))))
+
+(defun toc-org--goto-current-heading ()
+  "In the TOC buffer, position point at the entry for the heading at point."
+  (when (and toc-org--toc-buffer
+             (buffer-live-p toc-org--toc-buffer))
+    (let* ((toc-buf    toc-org--toc-buffer)
+           (markdown-p (derived-mode-p 'markdown-mode))
+           (heading-re (if markdown-p "^\\(#+\\)[ \t]+" "^\\(\\*+\\)[ \t]+"))
+           (max-depth  (toc-org--effective-max-depth))
+           (line-num
+            (save-excursion
+              (end-of-line)
+              (catch 'found
+                (while (re-search-backward heading-re nil t)
+                  (when (<= (length (match-string 1)) max-depth)
+                    (throw 'found (line-number-at-pos))))))))
+      (when line-num
+        (with-current-buffer toc-buf
+          (goto-char (point-min))
+          (when (re-search-forward (format "::%d\\]\\[" line-num) nil t)
+            (beginning-of-line)))))))
 
 (defun toc-org--follow-link ()
   "Follow the first org link on the current line."
@@ -626,7 +658,7 @@ fraction of the frame size."
            (markdown-p  (derived-mode-p 'markdown-mode))
            (raw-toc     (toc-org-flush-subheadings
                          (toc-org-raw-toc markdown-p)
-                         toc-org-max-depth))
+                         (toc-org--effective-max-depth)))
            (win-buf     (get-buffer-create toc-org-navigation-window-buffer-name)))
       (cond
        ((not source-file)
@@ -657,7 +689,8 @@ fraction of the frame size."
           (add-hook 'kill-buffer-hook        #'toc-org--close-toc-window-on-kill nil t)
           (add-hook 'after-save-hook         #'toc-org--refresh-navigation-window nil t)
           (add-hook 'buffer-list-update-hook #'toc-org--close-toc-window)
-          (toc-org--refresh-navigation-window))
+          (toc-org--refresh-navigation-window)
+          (toc-org--goto-current-heading))
         (select-window
          (display-buffer
           win-buf
