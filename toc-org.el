@@ -585,7 +585,6 @@ allowing navigation via `org-open-at-point' (\\[org-open-at-point])."
           (setq-local header-line-format
                       (format " TOC - %s" (buffer-name source-buf)))))
 
-            (local-set-key (kbd "q") #'kill-buffer-and-window)
             (with-current-buffer source-buf
                                  (setq toc-org--toc-buffer win-buf)
                                  (add-hook 'kill-buffer-hook        #'toc-org--close-toc-window-on-kill nil t)
