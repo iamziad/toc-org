@@ -578,6 +578,14 @@ fallback to `markdown-follow-thing-at-point' on failure"
               (set-window-point win (min saved-point (point-max)))
             (goto-char (point-min))))))))
 
+(defun toc-org--follow-link ()
+  "Follow the first org link on the current line."
+  (interactive)
+  (save-excursion
+    (beginning-of-line)
+    (when (re-search-forward "\\[\\[" (line-end-position) t)
+      (org-open-at-point))))
+
 ;;;###autoload
 (defun toc-org-navigation-window ()
   "Show the table of contents of the current buffer in a side window.
@@ -617,7 +625,16 @@ allowing navigation via `org-open-at-point' (\\[org-open-at-point])."
         (setq-local mode-line-format nil)
         (setq buffer-read-only t)
         (setq-local header-line-format
-                    (format " Table of Contents - %s" (buffer-name source-buf))))
+                    (format " Table of Contents - %s" (buffer-name source-buf)))
+        (let ((map (make-sparse-keymap)))
+          (set-keymap-parent map (current-local-map))
+          (define-key map "n" #'next-line)
+          (define-key map "p" #'previous-line)
+          (define-key map "f" #'forward-char)
+          (define-key map "b" #'backward-char)
+          (define-key map "k" #'kill-buffer-and-window)
+          (define-key map (kbd "RET") #'toc-org--follow-link)
+          (use-local-map map)))
 
             (with-current-buffer source-buf
               (setq toc-org--toc-buffer win-buf)
