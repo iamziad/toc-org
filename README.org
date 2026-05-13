@@ -18,10 +18,10 @@ name conflict with one of the org contrib modules.
   - [[#via-packageel][via package.el]]
   - [[#manual][Manual]]
 - [[#use][Use]]
-  - [[#toc-side-window][TOC Side Window]]
   - [[#follow-links][Follow links]]
   - [[#exclude-headings][Exclude headings]]
   - [[#quote-table-of-contents][Quote table of contents]]
+  - [[#navigation-window][Navigation window]]
   - [[#shortcut-for-toc-tag][Shortcut for TOC tag]]
 - [[#markdown-support][Markdown support]]
 - [[#different-href-styles][Different href styles]]
@@ -88,36 +88,9 @@ You can also use =@= as separator, instead of =_=.
 
 It's possible to set the default values of max depth and hrefify function with
 =toc-org-max-depth= and =toc-org-hrefify-default= variables. But, note, that if
-you do this outside of the org file itself, then you can face conflicts if you 
-work on the same file collaboratively with someone else, as your default configs 
+you do this outside of the org file itself, then you can face conflicts if you
+work on the same file collaboratively with someone else, as your default configs
 can vary.
-
-** TOC Side Window
-
-[[https://github-production-user-asset-6210df.s3.amazonaws.com/215027645/591403334-d0431bc4-458b-477b-b680-f77a34014160.gif?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAVCODYLSA53PQK4ZA%2F20260512%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20260512T232232Z&X-Amz-Expires=300&X-Amz-Signature=5e986cd3a4efc113d4adf22447fee83831f5cacc0babdaef17d463bcd42b0b06&X-Amz-SignedHeaders=host&response-content-type=image%2Fgif]]
-
-You can display the table of contents in a dedicated side window for easier
-navigation using: ~M-x toc-org-show-toc-window~
-
-This command works as a *toggle*: if the window is already open, calling the
-command again will close it.
-
-Inside the TOC window:
-- Use ~C-c C-o~ (~org-open-at-point~) to jump to the corresponding heading in
-  the source buffer.
-
-You can customize the appearance by setting these variables:
-- ~toc-org-side-window-side~: Where to display the window (~'left~,
-  ~'right~,~'top~, or ~'bottom~).
-- ~toc-org-side-window-size~: Controls the width or height of the window.
-- Use an *integer* for a fixed number of columns or lines.
-- Use a *float* (between 0.0 and 1.0) to set it as a *percentage* of the
-  frame size (e.g., ~0.3~ for 30%).
-
-It's recommended to map ~toc-org-show-toc-window~ to a shortcut.
- - Example:
-  ~(with-eval-after-load 'org
-    (define-key org-mode-map (kbd "C-c t") #'toc-org-show-toc-window))~
 
 ** Follow links
 
@@ -147,6 +120,25 @@ For presentation purposes, you might want to put the table of contents in a
 quote block (i.e. =#+BEGIN_QUOTE= / =#+END_QUOTE=). In that case, GitHub, for
 example, will add a vertical line to the left of the TOC that makes it distinct
 from the main text. To do this, just add a =:QUOTE:= tag to the TOC heading.
+
+** Navigation window
+
+You can display the table of contents in a dedicated side window for easier
+navigation using: =M-x toc-org-show-toc-window= (mapped to =C-c t=). This
+command works as a *toggle*: if the window is already open, calling the command
+again will close it.
+
+The buffer is read-only and you can use single-letter shortcuts, like, =n=, =p=,
+ =f=, =b= for navigation; =k= for killing it and =C-m=/=ENTER= for following the
+ links.
+
+You can customize the appearance by setting these variables:
+- =toc-org-side-window-side=: Where to display the window (='left=,
+  ='right=, ='top=, or ='bottom=).
+- =toc-org-side-window-size~: Controls the width or height of the window.
+- Use an *integer* for a fixed number of columns or lines.
+- Use a *float* (between 0.0 and 1.0) to set it as a *percentage* of the
+  frame size (e.g., ~0.3~ for 30%).
 
 ** Shortcut for TOC tag
 
