@@ -527,7 +527,7 @@ fallback to `markdown-follow-thing-at-point' on failure"
     (setq toc-org--toc-buffer nil)))
 
 ;;;###autoload
-(defun toc-org-show-toc-window ()
+(defun toc-org-navigation-window ()
   "Show the table of contents of the current buffer in a side window.
 The TOC is displayed in a dedicated buffer with `org-mode' enabled,
 allowing navigation via `org-open-at-point' (\\[org-open-at-point])."

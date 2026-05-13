@@ -124,7 +124,7 @@ from the main text. To do this, just add a =:QUOTE:= tag to the TOC heading.
 ** Navigation window
 
 You can display the table of contents in a dedicated side window for easier
-navigation using: =M-x toc-org-show-toc-window= (mapped to =C-c t=). This
+navigation using: =M-x toc-org-navigation-window= (mapped to =C-c t=). This
 command works as a *toggle*: if the window is already open, calling the command
 again will close it.
 
