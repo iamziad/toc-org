@@ -611,64 +611,61 @@ appears on (left, right, top, or bottom).  Customize
 for a fixed number of columns/lines, or a float (0.0–1.0) for a
 fraction of the frame size."
   (interactive)
-
-   (if (string= (buffer-name) toc-org-navigation-window-buffer-name)
-     (kill-buffer-and-window)
-
-     (if (and toc-org--toc-buffer
-              (buffer-live-p toc-org--toc-buffer)
-              (get-buffer-window toc-org--toc-buffer))
-       (progn
-         (kill-buffer toc-org--toc-buffer)
-         (setq toc-org--toc-buffer nil)
-         (remove-hook 'after-save-hook #'toc-org--refresh-navigation-window t))
-
-  (let* ((source-buf  (current-buffer))
-         (source-file (buffer-file-name source-buf))
-         (markdown-p  (derived-mode-p 'markdown-mode))
-         (raw-toc     (toc-org-flush-subheadings
-                       (toc-org-raw-toc markdown-p)
-                       toc-org-max-depth))
-         (win-buf     (get-buffer-create toc-org-navigation-window-buffer-name)))
-    (if (not source-file)
-        (progn
-          (kill-buffer win-buf)
-          (message "toc-org: Buffer is not visiting a file."))
-    (if (string-empty-p (string-trim raw-toc))
-        (progn
-          (kill-buffer win-buf)
-          (message "toc-org: No headings found in this buffer."))
-      (with-current-buffer win-buf
-        (org-mode)
-        (display-line-numbers-mode -1)
-        (setq-local mode-line-format nil)
-        (setq buffer-read-only t)
-        (setq-local header-line-format
-                    (format " Table of Contents - %s" (buffer-name source-buf)))
-        (let ((map (make-sparse-keymap)))
-          (set-keymap-parent map (current-local-map))
-          (define-key map "n" #'next-line)
-          (define-key map "p" #'previous-line)
-          (define-key map "f" #'forward-char)
-          (define-key map "b" #'backward-char)
-          (define-key map "k" #'kill-buffer-and-window)
-          (define-key map (kbd "RET") #'toc-org--follow-link)
-          (use-local-map map)))
-
-            (with-current-buffer source-buf
-              (setq toc-org--toc-buffer win-buf)
-              (add-hook 'kill-buffer-hook        #'toc-org--close-toc-window-on-kill nil t)
-              (add-hook 'after-save-hook         #'toc-org--refresh-navigation-window nil t)
-              (add-hook 'buffer-list-update-hook #'toc-org--close-toc-window)
-              (toc-org--refresh-navigation-window))
-            (select-window
-              (display-buffer
-                win-buf
-                (cons 'display-buffer-in-side-window
-                      (list (cons 'side          toc-org-side-window-side)
-                            (cons 'window-width  toc-org-side-window-size)
-                            (cons 'window-height toc-org-side-window-size)
-                            '(slot . 0)))))))))))
+  (cond
+   ((string= (buffer-name) toc-org-navigation-window-buffer-name)
+    (kill-buffer-and-window))
+   ((and toc-org--toc-buffer
+         (buffer-live-p toc-org--toc-buffer)
+         (get-buffer-window toc-org--toc-buffer))
+    (kill-buffer toc-org--toc-buffer)
+    (setq toc-org--toc-buffer nil)
+    (remove-hook 'after-save-hook #'toc-org--refresh-navigation-window t))
+   (t
+    (let* ((source-buf  (current-buffer))
+           (source-file (buffer-file-name source-buf))
+           (markdown-p  (derived-mode-p 'markdown-mode))
+           (raw-toc     (toc-org-flush-subheadings
+                         (toc-org-raw-toc markdown-p)
+                         toc-org-max-depth))
+           (win-buf     (get-buffer-create toc-org-navigation-window-buffer-name)))
+      (cond
+       ((not source-file)
+        (kill-buffer win-buf)
+        (message "toc-org: Buffer is not visiting a file."))
+       ((string-empty-p (string-trim raw-toc))
+        (kill-buffer win-buf)
+        (message "toc-org: No headings found in this buffer."))
+       (t
+        (with-current-buffer win-buf
+          (org-mode)
+          (display-line-numbers-mode -1)
+          (setq-local mode-line-format nil)
+          (setq buffer-read-only t)
+          (setq-local header-line-format
+                      (format " Table of Contents - %s" (buffer-name source-buf)))
+          (let ((map (make-sparse-keymap)))
+            (set-keymap-parent map (current-local-map))
+            (define-key map "n" #'next-line)
+            (define-key map "p" #'previous-line)
+            (define-key map "f" #'forward-char)
+            (define-key map "b" #'backward-char)
+            (define-key map "k" #'kill-buffer-and-window)
+            (define-key map (kbd "RET") #'toc-org--follow-link)
+            (use-local-map map)))
+        (with-current-buffer source-buf
+          (setq toc-org--toc-buffer win-buf)
+          (add-hook 'kill-buffer-hook        #'toc-org--close-toc-window-on-kill nil t)
+          (add-hook 'after-save-hook         #'toc-org--refresh-navigation-window nil t)
+          (add-hook 'buffer-list-update-hook #'toc-org--close-toc-window)
+          (toc-org--refresh-navigation-window))
+        (select-window
+         (display-buffer
+          win-buf
+          (cons 'display-buffer-in-side-window
+                (list (cons 'side          toc-org-side-window-side)
+                      (cons 'window-width  toc-org-side-window-size)
+                      (cons 'window-height toc-org-side-window-size)
+                      '(slot . 0)))))))))))
 
 ;; Local Variables:
 ;; compile-command: "emacs -batch -l ert -l toc-org.el -l toc-org-test.el -f ert-run-tests-batch-and-exit && emacs -batch -f batch-byte-compile toc-org.el 2>&1 | sed -n '/Warning\|Error/p' | xargs -r ls"
