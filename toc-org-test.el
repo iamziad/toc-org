@@ -430,3 +430,38 @@ producing \"Selecting deleted buffer\"."
       (when (get-buffer toc-org-navigation-pane-buffer-name) (kill-buffer (get-buffer toc-org-navigation-pane-buffer-name)))
       (kill-buffer buf)
       (delete-file tmpfile))))
+
+(ert-deftest test-toc-org-nav-next-and-prev ()
+  "M-n / M-p move the pane point and update the source window position."
+  (when (get-buffer toc-org-navigation-pane-buffer-name)
+    (kill-buffer toc-org-navigation-pane-buffer-name))
+  (let* ((tmpfile (make-temp-file "toc-org-test" nil ".org"))
+         (buf (find-file-noselect tmpfile))
+         (win (selected-window)))
+    (unwind-protect
+        (with-current-buffer buf
+          (insert "* First\n* Second\n* Third\n")
+          (remove-hook 'buffer-list-update-hook #'toc-org--close-toc-pane)
+          (cl-letf (((symbol-function 'display-buffer) #'ignore)
+                    ((symbol-function 'select-window)  #'ignore))
+            (toc-org-navigation-pane))
+          (remove-hook 'buffer-list-update-hook #'toc-org--close-toc-pane)
+          (let ((nav-buf (get-buffer toc-org-navigation-pane-buffer-name)))
+            (set-window-buffer win buf)
+            (cl-letf (((symbol-function 'get-buffer-window)
+                       (lambda (b &rest _) (when (eq b buf) win))))
+              (with-current-buffer nav-buf
+                (goto-char (point-min))
+                (toc-org--nav-next)
+                (should (= (line-number-at-pos) 2)))
+              ;; window-point is a position in buf — check it in buf's context
+              (should (= (with-current-buffer buf (line-number-at-pos (window-point win))) 2))
+              (with-current-buffer nav-buf
+                (toc-org--nav-prev)
+                (should (= (line-number-at-pos) 1)))
+              (should (= (with-current-buffer buf (line-number-at-pos (window-point win))) 1)))))
+      (remove-hook 'buffer-list-update-hook #'toc-org--close-toc-pane)
+      (when (get-buffer toc-org-navigation-pane-buffer-name)
+        (kill-buffer (get-buffer toc-org-navigation-pane-buffer-name)))
+      (kill-buffer buf)
+      (delete-file tmpfile))))

@@ -145,6 +145,9 @@ size (e.g. 0.3 for 30%)."
 (defvar-local toc-org--toc-buffer nil
   "TOC navigation pane buffer associated with this buffer.")
 
+(defvar-local toc-org--nav-source-buffer nil
+  "Source buffer associated with this navigation pane buffer.")
+
 (defun toc-org-raw-toc (markdown-syntax-p)
   "Return the \"raw\" table of contents of the current file,
 i.e. simply flush everything that's not a heading and strip
@@ -161,6 +164,13 @@ auxiliary text."
       (when markdown-syntax-p
         (save-excursion
           (let ((case-fold-search t))
+            ;; remove ``` code fence blocks so their # lines aren't treated as headings
+            (goto-char (point-min))
+            (while (re-search-forward "^```" nil t)
+              (let ((beg (line-beginning-position)))
+                (when (re-search-forward "^```" nil t)
+                  (forward-line 1)
+                  (delete-region beg (point)))))
             (goto-char (point-min))
             (while (re-search-forward "^#+ " nil t)
               (replace-match (concat
@@ -626,6 +636,32 @@ Uses the depth from the :TOC_N: tag if present, else `toc-org-max-depth'."
     (when (re-search-forward "\\[\\[" (line-end-position) t)
       (org-open-at-point))))
 
+(defun toc-org--nav-show-heading ()
+  "Move point in the source buffer to the heading on the current nav-pane line."
+  (when (and toc-org--nav-source-buffer
+             (buffer-live-p toc-org--nav-source-buffer))
+    (save-excursion
+      (beginning-of-line)
+      (when (re-search-forward "::\\([0-9]+\\)\\]\\[" (line-end-position) t)
+        (let ((line-num (string-to-number (match-string 1)))
+              (source-win (get-buffer-window toc-org--nav-source-buffer)))
+          (when source-win
+            (with-selected-window source-win
+              (goto-char (point-min))
+              (forward-line (1- line-num)))))))))
+
+(defun toc-org--nav-next ()
+  "Move to the next entry in the navigation pane and show it in the source buffer."
+  (interactive)
+  (next-line)
+  (toc-org--nav-show-heading))
+
+(defun toc-org--nav-prev ()
+  "Move to the previous entry in the navigation pane and show it in the source buffer."
+  (interactive)
+  (previous-line)
+  (toc-org--nav-show-heading))
+
 ;;;###autoload
 (defun toc-org-navigation-pane ()
   "Show the table of contents of the current buffer as a side pane.
@@ -633,10 +669,12 @@ Uses the depth from the :TOC_N: tag if present, else `toc-org-max-depth'."
 Works as a toggle: calling it again closes the pane.
 
 The TOC buffer is read-only with these single-letter shortcuts:
-  n / p   next / previous line
-  f / b   forward / backward character
-  k       close the pane
-  RET     follow the link on the current line
+  n / p           next / previous line
+  f / b           forward / backward character
+  k               close the pane
+  RET             follow the link on the current line
+  M-n / M-<down>  move to next entry and show it in the source buffer
+  M-p / M-<up>    move to previous entry and show it in the source buffer
 
 Customize `toc-org-side-window-side' to set which side the pane
 appears on (left, right, top, or bottom).  Customize
@@ -668,6 +706,7 @@ fraction of the frame size."
           (display-line-numbers-mode -1)
           (setq-local mode-line-format nil)
           (setq-local buffer-read-only t)
+          (setq-local toc-org--nav-source-buffer source-buf)
           (setq-local header-line-format
                       (format " Table of Contents - %s" (buffer-name source-buf)))
           (let ((map (make-sparse-keymap)))
@@ -678,6 +717,10 @@ fraction of the frame size."
             (define-key map "b" #'backward-char)
             (define-key map "k" #'kill-buffer-and-window)
             (define-key map (kbd "RET") #'toc-org--follow-link)
+            (define-key map (kbd "M-n") #'toc-org--nav-next)
+            (define-key map (kbd "M-p") #'toc-org--nav-prev)
+            (define-key map (kbd "M-<down>") #'toc-org--nav-next)
+            (define-key map (kbd "M-<up>") #'toc-org--nav-prev)
             (use-local-map map)))
         (with-current-buffer source-buf
           (setq toc-org--toc-buffer win-buf)
