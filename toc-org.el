@@ -651,15 +651,15 @@ Uses the depth from the :TOC_N: tag if present, else `toc-org-max-depth'."
               (forward-line (1- line-num)))))))))
 
 (defun toc-org--nav-next ()
-  "Move to the next entry in the navigation pane and show it in the source buffer."
+  "Move to next nav pane entry and show it in the source buffer."
   (interactive)
-  (next-line)
+  (forward-line 1)
   (toc-org--nav-show-heading))
 
 (defun toc-org--nav-prev ()
-  "Move to the previous entry in the navigation pane and show it in the source buffer."
+  "Move to previous nav pane entry and show it in the source buffer."
   (interactive)
-  (previous-line)
+  (forward-line -1)
   (toc-org--nav-show-heading))
 
 ;;;###autoload
