@@ -570,12 +570,12 @@ Uses the depth from the :TOC_N: tag if present, else `toc-org-max-depth'."
   (when (and toc-org--toc-buffer
              (buffer-live-p toc-org--toc-buffer))
     (let* ((source-buf   (current-buffer))
+           (toc-buf      toc-org--toc-buffer)
            (source-file  (buffer-file-name source-buf))
            (markdown-p   (derived-mode-p 'markdown-mode))
            (raw-toc      (toc-org-flush-subheadings
                           (toc-org-raw-toc markdown-p)
                           (or max-depth (toc-org--effective-max-depth))))
-           (toc-buf      toc-org--toc-buffer)
            (win          (get-buffer-window toc-buf))
            (saved-point  (when win (window-point win))))
       (with-current-buffer toc-buf
@@ -724,10 +724,12 @@ fraction of the frame size."
             (use-local-map map)))
         (with-current-buffer source-buf
           (setq toc-org--toc-buffer win-buf)
-          (add-hook 'kill-buffer-hook        #'toc-org--close-toc-pane-on-kill nil t)
-          (add-hook 'after-save-hook         #'toc-org--refresh-navigation-pane nil t)
-          (add-hook 'buffer-list-update-hook #'toc-org--close-toc-pane)
-          (toc-org--refresh-navigation-pane max-depth))
+          (add-hook 'kill-buffer-hook  #'toc-org--close-toc-pane-on-kill nil t)
+          (add-hook 'after-save-hook   #'toc-org--refresh-navigation-pane nil t)
+          (toc-org--refresh-navigation-pane max-depth)
+          ;; add after refresh so with-temp-buffer inside toc-org-raw-toc
+          ;; doesn't fire the hook before the pane window is shown
+          (add-hook 'buffer-list-update-hook #'toc-org--close-toc-pane))
         (if (with-current-buffer win-buf (zerop (buffer-size)))
             (progn
               (kill-buffer win-buf)
