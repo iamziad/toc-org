@@ -651,7 +651,8 @@ Uses the depth from the :TOC_N: tag if present, else `toc-org-max-depth'."
           (when source-win
             (with-selected-window source-win
               (goto-char (point-min))
-              (forward-line (1- line-num)))))))))
+              (forward-line (1- line-num))
+              (recenter))))))))
 
 (defun toc-org--nav-next ()
   "Move to next nav pane entry and show it in the source buffer."
