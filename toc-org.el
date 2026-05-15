@@ -578,7 +578,10 @@ Uses the depth from the :TOC_N: tag if present, else `toc-org-max-depth'."
            (markdown-p   (derived-mode-p 'markdown-mode))
            (raw-toc      (toc-org-flush-subheadings
                           (toc-org-raw-toc markdown-p)
-                          (or max-depth (toc-org--effective-max-depth))))
+                          (or max-depth
+                              (with-current-buffer toc-org--toc-buffer
+                                                   toc-org--nav-max-depth)
+                              (toc-org--effective-max-depth))))
            (win          (get-buffer-window toc-buf))
            (saved-point  (when win (window-point win))))
       (with-current-buffer toc-buf
