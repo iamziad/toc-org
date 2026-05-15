@@ -431,6 +431,46 @@ producing \"Selecting deleted buffer\"."
       (kill-buffer buf)
       (delete-file tmpfile))))
 
+(ert-deftest test-toc-org-nav-depth-change ()
+  "= / + / - adjust nav pane depth, clamped to [1, max-heading-depth]."
+  (when (get-buffer toc-org-navigation-pane-buffer-name)
+    (kill-buffer toc-org-navigation-pane-buffer-name))
+  (let* ((tmpfile (make-temp-file "toc-org-test" nil ".org"))
+         (buf (find-file-noselect tmpfile)))
+    (unwind-protect
+        (with-current-buffer buf
+          (insert "* H1\n** H2\n*** H3\n")
+          (remove-hook 'buffer-list-update-hook #'toc-org--close-toc-pane)
+          (cl-letf (((symbol-function 'display-buffer) #'ignore)
+                    ((symbol-function 'select-window)  #'ignore))
+            (toc-org-navigation-pane))
+          (remove-hook 'buffer-list-update-hook #'toc-org--close-toc-pane)
+          (let ((nav-buf (get-buffer toc-org-navigation-pane-buffer-name)))
+            (defun nav-content () (with-current-buffer nav-buf (buffer-string)))
+            ;; default depth 2: H1 and H2 visible, H3 not
+            (should     (string-match-p "H2" (nav-content)))
+            (should-not (string-match-p "H3" (nav-content)))
+            ;; increase to 3: H3 appears
+            (with-current-buffer nav-buf (toc-org--nav-increase-depth))
+            (should (string-match-p "H3" (nav-content)))
+            (should (= (buffer-local-value 'toc-org--nav-max-depth nav-buf) 3))
+            ;; increase beyond max heading depth (3): clamped at 3
+            (with-current-buffer nav-buf (toc-org--nav-increase-depth))
+            (should (= (buffer-local-value 'toc-org--nav-max-depth nav-buf) 3))
+            ;; decrease to 1: H2 and H3 gone
+            (with-current-buffer nav-buf (toc-org--nav-decrease-depth))
+            (with-current-buffer nav-buf (toc-org--nav-decrease-depth))
+            (should-not (string-match-p "H2" (nav-content)))
+            (should (= (buffer-local-value 'toc-org--nav-max-depth nav-buf) 1))
+            ;; decrease below minimum: clamped at 1
+            (with-current-buffer nav-buf (toc-org--nav-decrease-depth))
+            (should (= (buffer-local-value 'toc-org--nav-max-depth nav-buf) 1))))
+      (remove-hook 'buffer-list-update-hook #'toc-org--close-toc-pane)
+      (when (get-buffer toc-org-navigation-pane-buffer-name)
+        (kill-buffer (get-buffer toc-org-navigation-pane-buffer-name)))
+      (kill-buffer buf)
+      (delete-file tmpfile))))
+
 (ert-deftest test-toc-org-nav-next-and-prev ()
   "M-n / M-p move the pane point and update the source window position."
   (when (get-buffer toc-org-navigation-pane-buffer-name)

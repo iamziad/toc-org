@@ -148,6 +148,9 @@ size (e.g. 0.3 for 30%)."
 (defvar-local toc-org--nav-source-buffer nil
   "Source buffer associated with this navigation pane buffer.")
 
+(defvar-local toc-org--nav-max-depth nil
+  "Max depth shown in this navigation pane, or nil to use the default.")
+
 (defun toc-org-raw-toc (markdown-syntax-p)
   "Return the \"raw\" table of contents of the current file,
 i.e. simply flush everything that's not a heading and strip
@@ -662,6 +665,39 @@ Uses the depth from the :TOC_N: tag if present, else `toc-org-max-depth'."
   (forward-line -1)
   (toc-org--nav-show-heading))
 
+(defun toc-org--max-heading-depth ()
+  "Return the maximum heading depth present in the current buffer's TOC."
+  (let ((raw (toc-org-raw-toc (derived-mode-p 'markdown-mode)))
+        (depth 0))
+    (dolist (line (split-string raw "\n" t))
+      (when (string-match "^\\(\\*+\\)" line)
+        (setq depth (max depth (length (match-string 1 line))))))
+    depth))
+
+(defun toc-org--nav-change-depth (delta)
+  "Change the navigation pane max depth by DELTA and refresh."
+  (when (and toc-org--nav-source-buffer
+             (buffer-live-p toc-org--nav-source-buffer))
+    (let* ((current (or toc-org--nav-max-depth
+                        (with-current-buffer toc-org--nav-source-buffer
+                          (toc-org--effective-max-depth))))
+           (max-possible (with-current-buffer toc-org--nav-source-buffer
+                           (toc-org--max-heading-depth)))
+           (new-depth (max 1 (min (+ current delta) max-possible))))
+      (setq toc-org--nav-max-depth new-depth)
+      (with-current-buffer toc-org--nav-source-buffer
+        (toc-org--refresh-navigation-pane new-depth)))))
+
+(defun toc-org--nav-increase-depth ()
+  "Increase the max depth shown in the navigation pane."
+  (interactive)
+  (toc-org--nav-change-depth 1))
+
+(defun toc-org--nav-decrease-depth ()
+  "Decrease the max depth shown in the navigation pane."
+  (interactive)
+  (toc-org--nav-change-depth -1))
+
 ;;;###autoload
 (defun toc-org-navigation-pane ()
   "Show the table of contents of the current buffer as a side pane.
@@ -675,6 +711,8 @@ The TOC buffer is read-only with these single-letter shortcuts:
   RET             follow the link on the current line
   M-n / M-<down>  move to next entry and show it in the source buffer
   M-p / M-<up>    move to previous entry and show it in the source buffer
+  = / +           increase max depth
+  -               decrease max depth
 
 Customize `toc-org-side-window-side' to set which side the pane
 appears on (left, right, top, or bottom).  Customize
@@ -721,6 +759,9 @@ fraction of the frame size."
             (define-key map (kbd "M-p") #'toc-org--nav-prev)
             (define-key map (kbd "M-<down>") #'toc-org--nav-next)
             (define-key map (kbd "M-<up>") #'toc-org--nav-prev)
+            (define-key map "=" #'toc-org--nav-increase-depth)
+            (define-key map "+" #'toc-org--nav-increase-depth)
+            (define-key map "-" #'toc-org--nav-decrease-depth)
             (use-local-map map)))
         (with-current-buffer source-buf
           (setq toc-org--toc-buffer win-buf)
